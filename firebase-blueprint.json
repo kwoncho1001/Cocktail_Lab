@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "Recipe": {
+      "title": "Recipe",
+      "description": "Cocktail recipe entity",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "baseIngredientId": { "type": "string" },
+        "instructions": { "type": "array" },
+        "technique": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "garnish": { "type": "string" },
+        "flavorProfile": { "type": "array" },
+        "history": { "type": "string" },
+        "ingredients": { "type": "array" },
+        "authorId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "instructions", "authorId"]
+    },
+    "TastingNote": {
+      "title": "TastingNote",
+      "description": "User tasting note/review for a recipe",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipeId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "rating": { "type": "number" },
+        "sweet": { "type": "number" },
+        "sour": { "type": "number" },
+        "alcohol": { "type": "number" },
+        "bitter": { "type": "number" },
+        "body": { "type": "number" },
+        "tags": { "type": "array" },
+        "note": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "rating", "note"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User data including their bar",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "myBar": { "type": "array" },
+        "bookmarks": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    }
+  },
+  "firestore": {
+    "/recipes/{recipeId}": {
+      "schema": { "$ref": "Recipe" },
+      "description": "Collection of cocktail recipes"
+    },
+    "/recipes/{recipeId}/reviews/{reviewId}": {
+      "schema": { "$ref": "TastingNote" },
+      "description": "Subcollection of reviews for a recipe"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "User profile data"
+    }
+  }
+}

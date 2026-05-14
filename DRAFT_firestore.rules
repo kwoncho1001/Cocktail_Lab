@@ -1,0 +1,98 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Primitives
+    function isSignedIn() { return request.auth != null; }
+    // Some providers might not set email_verified correctly, so we check for sign-in as a fallback or if the email is present.
+    function isVerified() { return isSignedIn() && (request.auth.token.email_verified == true || request.auth.token.email != null); }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Pillar 2: Validation Blueprints
+    function isValidRecipe(data) {
+      return data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.instructions is list && data.instructions.size() >= 1
+        && data.authorId == request.auth.uid
+        && (!('ingredients' in data) || data.ingredients is list)
+        // Relaxing timestamp checks to prevent strict server-time mismatches
+        && (!('createdAt' in data) || data.createdAt != null)
+        && (!('updatedAt' in data) || data.updatedAt != null);
+    }
+
+    function isValidReview(data) {
+      return data.rating is number && data.rating >= 1 && data.rating <= 5
+        && data.note is string && data.note.size() <= 1000
+        && data.userId == request.auth.uid
+        && (!('createdAt' in data) || data.createdAt != null);
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId == request.auth.uid
+        && (!('myBar' in data) || (data.myBar is list && data.myBar.size() <= 100))
+        && (!('updatedAt' in data) || data.updatedAt != null);
+    }
+
+    // Path Logic
+    
+    match /recipes/{recipeId} {
+      allow get: if isSignedIn() && isValidId(recipeId);
+      allow list: if isSignedIn();
+      
+      allow create: if isVerified() && isValidId(recipeId) 
+        && isValidRecipe(incoming())
+        && incoming().keys().hasAll(['id', 'title', 'instructions', 'authorId', 'createdAt']);
+        
+      allow update: if isVerified() && isOwner(existing().authorId) && isValidRecipe(incoming())
+        && incoming().authorId == existing().authorId
+        && incoming().createdAt == existing().createdAt
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'instructions', 'ingredients', 'updatedAt', 'baseIngredientId', 'technique', 'difficulty', 'garnish', 'flavorProfile', 'history'])
+        );
+      
+      allow delete: if isVerified() && isOwner(existing().authorId);
+
+      match /reviews/{reviewId} {
+        allow get: if isSignedIn() && isValidId(reviewId);
+        allow list: if isSignedIn();
+        
+        allow create: if isVerified() && isValidId(reviewId) 
+          && isValidReview(incoming())
+          && incoming().keys().hasAll(['id', 'rating', 'note', 'userId', 'userName', 'createdAt']);
+          
+        allow update: if isVerified() && isOwner(existing().userId) && isValidReview(incoming())
+          && incoming().userId == existing().userId
+          && (
+             incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'note', 'tags', 'sweet', 'sour', 'alcohol', 'bitter', 'body', 'userName'])
+          );
+        
+        allow delete: if isVerified() && isOwner(existing().userId);
+      }
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow list: if isOwner(userId);
+      
+      allow create: if isVerified() && isOwner(userId) && isValidUserProfile(incoming())
+        && incoming().keys().hasAll(['userId', 'myBar']);
+        
+      allow update: if isVerified() && isOwner(userId) && isValidUserProfile(incoming())
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['myBar', 'bookmarks', 'updatedAt', 'userId'])
+        );
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

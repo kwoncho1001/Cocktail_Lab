@@ -1,0 +1,6 @@
+{
+  "name": "DB Cocktail",
+  "description": "AI-powered cocktail recipe extractor from YouTube/URLs with a smart home-bar management system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
